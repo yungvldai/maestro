@@ -1,0 +1,18 @@
+[package]
+name = "maestro"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "maestro"
+path = "src/main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+env_logger = "0.10.1"
+log = "0.4.20"
+serde = { version = "1.0.193", features = ["derive"] }
+serde_yaml = "0.9.27"
+signal-hook = "0.3.17"
+

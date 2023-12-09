@@ -1,0 +1,20 @@
+apps:
+  - name: db
+    user: vi
+    command: ["./long-proc.sh"]
+    ready: 
+      command: ["./wait.sh"]
+    
+  - name: server
+    user: vi
+    command: ["ls"]
+    depends_on:
+      - db
+
+  - name: mock
+    user: vi
+    command: ["./long-proc.sh"]
+    ready: 
+      delay: 5000
+    depends_on:
+      - db
