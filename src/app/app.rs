@@ -1,6 +1,6 @@
 use std::{process::{Command, Child, Stdio, ExitStatus}, os::unix::process::CommandExt, env, time::{SystemTime, UNIX_EPOCH, Duration}, io::{Error, ErrorKind}};
 
-use crate::{config::ConfigReady, exec::exec_sync_check_ok};
+use crate::{config::ConfigReady, readiness};
 
 use super::AppStatus;
 
@@ -10,7 +10,6 @@ pub struct App {
     command: Vec<String>,
     uid: u32,
     ready: ConfigReady,
-    deps: Vec<String>,
     signal: i32,
 
     process: Option<Child>,
@@ -36,7 +35,6 @@ impl App {
         command: Vec<String>,
         uid: u32,
         ready: ConfigReady,
-        deps: Vec<String>,
         signal: i32,
 
         stdout: Option<String>,
@@ -47,7 +45,6 @@ impl App {
             command,
             uid,
             ready,
-            deps,
             signal,
 
             process: None,
@@ -77,10 +74,6 @@ impl App {
         self.name.to_owned()
     }
 
-    pub fn get_deps(&self) -> Vec<String> {
-        self.deps.to_owned()
-    }
-
     pub fn get_status(&self) -> AppStatus {
         self.status
     }
@@ -103,7 +96,7 @@ impl App {
         }
 
         if self.command.is_empty() {
-            log::warn!("command is not preseted for app \"{}\"", self.name);
+            log::error!("command is not preseted for app \"{}\"", self.name);
             self.set_status(AppStatus::Stopped);
 
             return;
@@ -139,8 +132,8 @@ impl App {
                 self.started_at = Some(get_now());
                 self.set_status(AppStatus::Started);
             },
-            Err(_) => {
-                log::warn!("unable to run the app \"{}\"", self.name);
+            Err(err) => {
+                log::error!("unable to run the app \"{}\", {}", self.name, err.to_string());
                 self.set_status(AppStatus::Stopped);
             }
         }        
@@ -155,13 +148,13 @@ impl App {
                     None => {
                         self.ready_checked_at = Some(now);
 
-                        exec_sync_check_ok(command.to_owned())
+                        readiness::command(command.to_owned())
                     },
                     Some(last_ready_checked) => {
                         if now.as_millis() - last_ready_checked.as_millis() >= *period as u128 { 
                             self.ready_checked_at = Some(now);
 
-                            exec_sync_check_ok(command.to_owned())
+                            readiness::command(command.to_owned())
                         } else {
                             false
                         }
@@ -176,10 +169,23 @@ impl App {
                     }
                 }
             },
-            ConfigReady::Http { path, method, period } => {
-                log::warn!("ready HTTP probe is not implemented yet, considered as {}", AppStatus::Running);
+            ConfigReady::Http { url, method, period } => {
+                match self.ready_checked_at {
+                    None => {
+                        self.ready_checked_at = Some(now);
 
-                true
+                        readiness::http(method.to_owned(), url.to_owned())
+                    },
+                    Some(last_ready_checked) => {
+                        if now.as_millis() - last_ready_checked.as_millis() >= *period as u128 { 
+                            self.ready_checked_at = Some(now);
+
+                            readiness::http(method.to_owned(), url.to_owned())
+                        } else {
+                            false
+                        }
+                    }
+                }
             },
             ConfigReady::None => {
                 log::info!("no readiness probe is preseted for app \"{}\", considering as ready", self.name);
@@ -198,7 +204,7 @@ impl App {
             if let Some(process) = &mut self.process {
                 match process.try_wait() {
                     Err(err) => {
-                        log::warn!("unable to check the app \"{}\", {}", self.name, err.to_string());
+                        log::error!("unable to check the app \"{}\", {}", self.name, err.to_string());
                         self.set_status(AppStatus::Stopped);
                     },
                     Ok(exit_status) => {
@@ -219,8 +225,16 @@ impl App {
         self.updated_at = get_now();
     }
 
+    fn kill(&mut self) {
+        if let Some(ref mut proc) = self.process {
+            log::info!("killing with SIGKILL...");
+
+            proc.kill().ok();
+        }
+    }
+
     pub fn stop(&mut self) {
-        if self.status != AppStatus::Started || self.status != AppStatus::Running {
+        if self.status != AppStatus::Started && self.status != AppStatus::Running {
             return;
         }
 
@@ -231,7 +245,10 @@ impl App {
             let signal = self.signal.to_string();
 
             let exit_status = Command::new("kill")
-                .args(["-s", signal.as_str(), pid.as_str()])
+                .args([
+                    format!("-{}", signal.as_str()), 
+                    pid
+                ])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()?
@@ -241,17 +258,17 @@ impl App {
         };
 
         match exec_kill() {
-            Ok(_) => {
-                self.set_status(AppStatus::Stopping);
+            Ok(status) => {
+                if status.code().unwrap_or(1) != 0 {
+                    log::warn!("unable to kill the app \"{}\" gracefully", self.name);
+                    self.kill();
+                } else {
+                    self.set_status(AppStatus::Stopping);
+                }
             },
             Err(err) => {
                 log::warn!("unable to kill the app \"{}\" gracefully, {}", self.name, err.to_string());
-
-                if let Some(ref mut proc) = self.process {
-                    log::info!("killing with SIGKILL...");
-
-                    proc.kill().ok();
-                }
+                self.kill();
             }
         }
     }

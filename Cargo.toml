@@ -15,4 +15,5 @@ log = "0.4.20"
 serde = { version = "1.0.193", features = ["derive"] }
 serde_yaml = "0.9.27"
 signal-hook = "0.3.17"
+ureq = "2.9.1"
 

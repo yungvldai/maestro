@@ -9,8 +9,28 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  release:
+    name: Release - ${{ matrix.platform.target }}
+    strategy:
+      matrix:
+        platform:
+          - name: Linux
+            os: ubuntu-20.04
+            target: x86_64-unknown-linux-gnu
+
+          - name: Alpine
+            os: ubuntu-20.04
+            target: x86_64-unknown-linux-musl
+
+          - name: Mac (Intel)
+            os: macos-11.0
+            target: x86_64-apple-darwin
+
+          - name: Mac (ARM)
+            os: macos-11.0
+            target: aarch64-apple-darwin
+
+    runs-on: ${{ matrix.platform.os }}
 
     steps:
     - name: Checkout
@@ -39,3 +59,4 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./target/release/maestro
         asset_name: maestro
+        asset_content_type: application/octet-stream

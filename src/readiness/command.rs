@@ -1,6 +1,6 @@
 use std::{process::{Command, ExitStatus, Stdio}, env, io::Error, time::Instant};
 
-pub fn exec_sync_check_ok(cmd: Vec<String>) -> bool {
+pub fn command(cmd: Vec<String>) -> bool {
     let mut full_command: Vec<_> = cmd.iter().map(|i| i.trim()).collect();
     let executable = full_command.remove(0);
     let args = full_command;
@@ -29,7 +29,7 @@ pub fn exec_sync_check_ok(cmd: Vec<String>) -> bool {
             value.success()
         },
         Err(err) => {
-            log::debug!("command \"{}\" FAILED, took {} ms, {}", cmd.join(" "), took, err.to_string());
+            log::warn!("command \"{}\" FAILED, took {} ms, {}", cmd.join(" "), took, err.to_string());
 
             false
         }

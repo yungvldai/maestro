@@ -124,7 +124,7 @@ pub enum ConfigReady {
         period: u32
     },
     Http {
-        path: String,
+        url: String,
 
         #[serde(default = "default_ready_http_method")]
         method: String,

@@ -1,20 +1,23 @@
 apps:
   - name: db
     user: vi
-    command: ["./long-proc.sh"]
+    command: ["./mocks/long-proc.sh"]
     ready: 
-      command: ["./wait.sh"]
+      command: ["./mocks/wait.sh"]
     
   - name: server
     user: vi
-    command: ["ls"]
+    command: ["./mocks/long-proc.sh"]
     depends_on:
       - db
+    ready: 
+
+      url: "https://vladivanov.me/"
 
   - name: mock
     user: vi
-    command: ["./long-proc.sh"]
+    command: ["./mocks/long-proc.sh"]
     ready: 
       delay: 5000
     depends_on:
-      - db
+      - server

@@ -2,7 +2,7 @@ mod config;
 mod app;
 mod user;
 mod logger;
-mod exec;
+mod readiness;
 mod pid;
 mod utils;
 
@@ -51,8 +51,21 @@ fn main() {
 
             match state {
                 MainState::Running => {
-                    if app.get_status() == AppStatus::Init && apps_map.check_deps_resolved_for(&app) {
-                        app.run();
+                    if app.get_status() == AppStatus::Init {
+                        let ready = apps_map
+                            .get_dependencies_for(&app.get_name())
+                            .iter()
+                            .all(|app_name| {
+                                let dep_app = apps_map.get(app_name).unwrap().borrow();
+
+                                dep_app.get_status() == AppStatus::Running ||
+                                // `stopped` with exit code 0 is OK?
+                                (dep_app.get_status() == AppStatus::Stopped && dep_app.get_exit_code() == Some(0))
+                            });
+
+                        if ready {
+                            app.run();
+                        }
                     }
         
                     if app.get_status() == AppStatus::Stopped && app.get_exit_code().unwrap_or(1) != 0 {
@@ -63,7 +76,20 @@ fn main() {
                     }
                 },
                 MainState::Stopping => {
+                    if app.get_status() == AppStatus::Running {
+                        let ready = apps_map
+                            .get_dependents_for(&app.get_name())
+                            .iter()
+                            .all(|app_name| {
+                                let dep_app = apps_map.get(app_name).unwrap().borrow();
 
+                                dep_app.get_status() == AppStatus::Stopped
+                            });
+
+                        if ready {
+                            app.stop();
+                        }
+                    }
                 }
             }
         }

@@ -1,2 +1,4 @@
 target/
+mocks/
+maestro.yml
 .DS_Store
