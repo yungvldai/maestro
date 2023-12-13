@@ -1,0 +1,11 @@
+{
+  "name": "releases",
+  "type": "module",
+  "bin": {
+    "get-tag": "./get-tag.js"
+  },
+  "dependencies": {
+    "@actions/github": "^6.0.0",
+    "semver": "^7.5.4"
+  }
+}

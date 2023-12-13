@@ -2,15 +2,38 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - 'release-*'
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  get-tag:
+    runs-on: ubuntu-latest
+
+    outputs:
+      get-tag: ${{ steps.run-get-tag.outputs.tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install deps
+        working-directory: ./scripts/releases
+        run: npm ci
+
+      - name: Run
+        id: run-get-tag
+        working-directory: ./scripts/releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm x get-tag && cat tag.txt >> "$GITHUB_OUTPUT"
+
   create-release:
     runs-on: ubuntu-latest
+
+    needs: get-tag
 
     steps:
       - name: Create Release
@@ -19,9 +42,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: ${{ needs.get-tag.outputs.get-tag }}
+          release_name: Release ${{ needs.get-tag.outputs.get-tag }}
           draft: false
+          body_path: ./RELEASE_NOTES.md
           prerelease: false
 
     outputs:
