@@ -169,7 +169,7 @@ impl Config {
         let pwd = env::current_dir().expect("unable to get cwd");
         let cwd_config_path = Path::new(pwd.as_path()).join(CONFIG_FILENAME);
 
-        if let Some(file) = File::open(cwd_config_path.to_owned()).ok() {
+        if let Ok(file) = File::open(&cwd_config_path) {
             let config: Config = serde_yaml::from_reader(file).unwrap();
 
             return config;
@@ -177,7 +177,7 @@ impl Config {
 
         let etc_config_path = Path::new(CONFIG_DIR).join(CONFIG_FILENAME);
 
-        let file = File::open(etc_config_path.to_owned()).expect(
+        let file = File::open(&etc_config_path).expect(
             format!(
                 "config file not found, checked: {} and {}",
                 cwd_config_path.to_str().unwrap(),
@@ -210,7 +210,7 @@ impl Config {
             for dep in app.depends_on.iter() {
                 // TODO check cycles
 
-                if app.name == dep.to_owned() {
+                if app.name == *dep {
                     panic!("dependence on oneself: \"{}\"", dep);
                 }
 

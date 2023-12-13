@@ -9,12 +9,8 @@ pub fn http(method: String, url: String) -> bool {
 
     let timeout = Duration::from_secs(1);
     let now = Instant::now();
-
     let agent = ureq::builder().timeout_connect(timeout).build();
-
-    // Make the HTTP request with a timeout
-    let response = agent.get(url.as_str()).call();
-
+    let response = agent.request(method.to_uppercase().as_str(), &url).call();
     let took = now.elapsed().as_millis();
 
     match response {
@@ -32,7 +28,7 @@ pub fn http(method: String, url: String) -> bool {
         Ok(value) => {
             let status = value.status();
 
-            if status >= 200 && status <= 299 {
+            if (200..=299).contains(&status) {
                 log::debug!(
                     "request {} {} OK, status: {}, took {} ms",
                     method.to_uppercase(),

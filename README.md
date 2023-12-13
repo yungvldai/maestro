@@ -16,10 +16,10 @@ Simple processes manager
         - [`user`](#user)
         - [`depends_on`](#depends_on)
         - [`ready`](#ready)
-            - [exit_code](#exit_code)
-            - [delay](#delay)
-            - [command](#command)
-            - [http](#http)
+            - [`exit_code`](#exit_code)
+            - [`delay`](#delay)
+            - [`command`](#command)
+            - [`http`](#http)
 - [Known issues](#known-issues)
 
 <!-- /TOC -->
@@ -172,7 +172,34 @@ apps:
 
 ##### `command`
 
+`maestro` will execute the specified command at the specified interval (default: 1s). The app will be considered **READY** if the command returns a zero exit code at some point. Please note that the command execution is blocking.
+
+Example: 
+
+```yaml
+apps:
+  - name: app
+    command: ["node", "app.js"]
+    ready:
+      command: ["npm", "run", "check-ready"]
+      period: 1000 # may be omitted (default: 1000ms)
+```
+
 ##### `http`
+
+`maestro` will make the specified HTTP request at the specified interval (default: 1s). The app will be considered **READY** if a 2xx HTTP status is returned in response. Please note that the request is blocking, and a timeout of 1 second is set for it.
+
+Example: 
+
+```yaml
+apps:
+  - name: app
+    command: ["node", "app.js", "--", "--port", "3000"]
+    ready:
+      url: http://localhost:3000/health-check
+      method: GET # case-insensitive and may be omitted (default: GET)
+      period: 1000 # may be omitted (default: 1000ms)
+```
 
 ## Known issues
 
