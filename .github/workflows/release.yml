@@ -29,7 +29,7 @@ jobs:
         working-directory: ./scripts/releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm x create-next && cat tag.txt >> "$GITHUB_OUTPUT"
+        run: npm x create-next && cat out.txt >> "$GITHUB_OUTPUT"
 
   build-upload-assets:
     name: Release - ${{ matrix.platform.target }}
