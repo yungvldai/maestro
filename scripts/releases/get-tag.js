@@ -5,15 +5,15 @@ import semver from 'semver';
 import { writeFileSync } from 'fs';
 
 const RELEASE_BRANCH_REGEX = /^release-(\d+\.\d+)$/;
-const BRANCH_NAME = (process.env.GITHUB_REF || '').replace('refs/heads/', '');
-
-console.log('Detected branch name:', BRANCH_NAME);
 
 const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
-const context = github.context;
+const context = github.context.payload;
 
-const panic = (message) => {
-    console.error(message);
+const BRANCH_NAME = (context.ref || '').replace('refs/heads/', '');
+const [OWNER, REPO] = (context.repository.full_name || '').split('/');
+
+const panic = (...messages) => {
+    console.error(...messages);
     process.exit(1);
 }
 
@@ -21,30 +21,35 @@ if (!BRANCH_NAME) {
     panic('Unable to get branch');
 }
 
+if (!OWNER || !REPO) {
+    panic('Unable to get repo');
+}
+
+console.log('Detected repo:', `${OWNER}/${REPO}`);
+console.log('Detected branch name:', BRANCH_NAME);
+
 const match = BRANCH_NAME.match(RELEASE_BRANCH_REGEX);
 
 if (!match) {
     panic('Not release branch');
 }
 
-const [, versionString] = match;
+const [, branchTag] = match;
 
-const versionObject = semver.parse(versionString + '.0');
-
-if (!versionObject) {
-    panic('Unable to parse semver');
+if (!semver.valid(branchTag + '.0')) {
+    panic('Unable to parse semver from branch');
 }
 
 const getReleases = async () => {
     let releases = [];
 
-    let items, page = 1
+    let len, page = 1
 
     do {
         try {
             const { data, status } = await octokit.rest.repos.listReleases({
-                owner: context.owner,
-                repo: context.repo,
+                owner: OWNER,
+                repo: REPO,
                 per_page: 100,
                 page
             });
@@ -53,26 +58,44 @@ const getReleases = async () => {
                 throw new Error('http error');
             }
 
-            const items = data;
-            releases = releases.concat(items);
+            len = data.length;
+            releases = releases.concat(data);
         } catch (error) {
-            panic('Unable to fetch releases');
+            panic('Unable to fetch releases', error);
         }
 
         page += 1;
-    } while (items.length > 0);
+    } while (len > 0);
 
-    return releases.sort((a, b) => semver.compare(b.tag_name, a.tag_name)); // DESC
+    return releases.sort((a, b) => semver.compare(b.tag_name, a.tag_name));
 }
 
 const releases = await getReleases();
 
 console.log('Fetched releases:', releases.length);
 
-const latest = releases.find(release => release.tag_name.startsWith(versionString));
+const latestRelease = releases[0];
+const latestReleaseByBranch = releases.find(release => release.tag_name.startsWith(branchTag));
 
-if (latest) {
-    versionObject.inc('patch');
+let tag;
+
+if (latestReleaseByBranch) {
+    // making new patch
+
+    const parsed = semver.parse(latestReleaseByBranch.tag_name)
+
+    if (!parsed) {
+        panic('Unable to parse semver from API');
+    }
+
+    tag = parsed.inc('patch').version;
+} else {
+    // making new major/minor version
+    tag = semver.parse(branchTag + '.0').version;
 }
 
-writeFileSync('./tag.txt', `tag=${versionObject.version}`);
+const isLatest = semver.gt(tag, latestRelease.tag_name);
+
+console.log('tag:', tag);
+
+writeFileSync('./tag.txt', `tag=${tag}\nmake-latest=${isLatest}`);
