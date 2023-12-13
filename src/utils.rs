@@ -1,4 +1,8 @@
-use std::{env, path::Path};
+use std::{
+    env,
+    path::Path,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 fn is_relative_path(path_str: &String) -> bool {
     let path = Path::new(&path_str);
@@ -18,4 +22,8 @@ pub fn normalize_path(path_str: String) -> String {
             .into_string()
             .unwrap()
     }
+}
+
+pub fn get_now() -> Duration {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
 }

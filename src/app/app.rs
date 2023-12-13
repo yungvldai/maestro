@@ -4,10 +4,14 @@ use std::{
     io::{Error, ErrorKind},
     os::unix::process::CommandExt,
     process::{Child, Command, ExitStatus, Stdio},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::Duration,
 };
 
-use crate::{config::ConfigReadinessProbe, readiness_probe, utils::normalize_path};
+use crate::{
+    config::ConfigReadinessProbe,
+    readiness_probe,
+    utils::{get_now, normalize_path},
+};
 
 use super::AppStatus;
 
@@ -30,10 +34,6 @@ pub struct App {
 
     stdout: Option<String>,
     stderr: Option<String>,
-}
-
-fn get_now() -> Duration {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
 }
 
 impl App {
