@@ -74,6 +74,12 @@ jobs:
 
       - name: Build app for ${{ matrix.platform.name }}
         run: cargo build --release --target ${{ matrix.platform.target }}
+
+      - name: Compress bin for ${{ matrix.platform.name }}
+        uses: vimtor/action-zip@v1.1
+        with:
+          files: ./target/${{ matrix.platform.target }}/release/maestro
+          dest: ./maestro-${{ matrix.platform.name }}.zip
     
       - name: Upload Release Asset
         id: upload-release-asset 
@@ -82,6 +88,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create-release.outputs.upload-url }}
-          asset_path: ./target/${{ matrix.platform.target }}/release/maestro
-          asset_name: maestro-bin-${{ matrix.platform.name }}
-          asset_content_type: application/octet-stream
+          asset_path: ./maestro-${{ matrix.platform.name }}.zip
+          asset_name: maestro-${{ matrix.platform.name }}.zip
+          asset_content_type: application/zip
