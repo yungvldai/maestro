@@ -35,6 +35,13 @@ Simple processes manager
 
 ## Installation
 
+```bash
+export MAESTRO_VERSION=1.0.0 # Specify required version
+export MAESTRO_BUILD=linux-musl # Specify required build
+
+curl -o maestro.zip "https://github.com/yungvldai/maestro/releases/download/${MAESTRO_VERSION}/maestro-${MAESTRO_BUILD}.zip" && unzip maestro.zip && rm maestro.zip
+```
+
 ## Operation
 
 `maestro` will start all app in the specified order and will be listening for signals. If `maestro` receives the appropriate signal, it will attempt to gracefully stop the started apps in reverse order. If any of the applications stop on their own, exiting with a non-zero code (or if `maestro` fails to obtain an exit code), `maestro` will also attempt to stop the remaining apps, preserving the order, and then exit itself.
