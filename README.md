@@ -60,7 +60,7 @@ By default, it only prints it. Note that the PID log has an info severity level 
 
 ### `log_level`
 
-`maestro` supports various levels of logging, such as: `debug`, `info`, `warn` and `error`. With this option, you can configure the messages you want to see during operation.
+`maestro` supports various levels of logging, such as: `debug`, `info`, `warn` and `error`. With this option, you can configure the messages you want to see during operation. Also, it may be controlled using `RUST_LOG` environment variable.
 
 ### `apps`
 
