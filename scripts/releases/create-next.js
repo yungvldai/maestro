@@ -29,7 +29,7 @@ if (!OWNER || !REPO) {
 console.log('Detected repo:', `${OWNER}/${REPO}`);
 console.log('Detected branch name:', BRANCH_NAME);
 
-const body = readFileSync('./RELEASE_NOTES.md', { encoding: 'utf-8' });
+const body = readFileSync('../../RELEASE_NOTES.md', { encoding: 'utf-8' });
 
 const match = BRANCH_NAME.match(RELEASE_BRANCH_REGEX);
 
