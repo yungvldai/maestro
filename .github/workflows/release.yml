@@ -46,6 +46,12 @@ jobs:
     - name: Install target ${{ matrix.platform.target }}
       run: rustup target add ${{ matrix.platform.target }}
 
+    - name: Installing deps
+      run: |
+        if [ "${{ matrix.platform.target }}" == "x86_64-unknown-linux-musl" ]; then
+          apt install musl-tools
+        fi
+
     - name: Build app for ${{ matrix.platform.name }}
       run: cargo build --release --target ${{ matrix.platform.target }}
     
