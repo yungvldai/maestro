@@ -52,7 +52,7 @@ jobs:
         fi
 
     - name: Build app for ${{ matrix.platform.name }}
-      run: cargo build --release --target ${{ matrix.platform.target }} && ls
+      run: cargo build --release --target ${{ matrix.platform.target }} && ls && ls target && ls target/release
     
     - name: Create Release
       id: create_release
