@@ -102,7 +102,7 @@ console.log('tag:', tag);
 const {
     data: { upload_url: uploadUrl }
 } = await octokit.rest.repos.createRelease({
-    make_latest: semver.gt(tag, latestRelease.tag_name),
+    make_latest: latestRelease ? semver.gt(tag, latestRelease.tag_name) : true,
     owner: OWNER,
     repo: REPO,
     tag_name: tag,
