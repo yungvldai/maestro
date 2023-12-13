@@ -2,8 +2,10 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - "main"
+    # tags:
+    #   - 'v*'
 
 env:
   CARGO_TERM_COLOR: always
@@ -14,19 +16,19 @@ jobs:
     strategy:
       matrix:
         platform:
-          - name: Linux
+          - name: linux-gnu
             os: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
 
-          - name: Alpine
+          - name: linux-musl
             os: ubuntu-20.04
             target: x86_64-unknown-linux-musl
 
-          - name: Mac (Intel)
+          - name: mac-intel
             os: macos-11.0
             target: x86_64-apple-darwin
 
-          - name: Mac (ARM)
+          - name: mac-apple-silicon
             os: macos-11.0
             target: aarch64-apple-darwin
 
@@ -36,27 +38,35 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
     
-    - name: Build
-      run: cargo build --verbose
+    - name: Toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+
+    - name: Install target ${{ matrix.platform.target }}
+      run: rustup target add ${{ matrix.platform.target }}
+
+    - name: Build app for ${{ matrix.platform.name }}
+      run: cargo build --release --target ${{ matrix.platform.target }}
     
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
+    # - name: Create Release
+    #   id: create_release
+    #   uses: actions/create-release@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     tag_name: ${{ github.ref }}
+    #     release_name: Release ${{ github.ref }}
+    #     draft: false
+    #     prerelease: false
         
-    - name: Upload Release Asset
-      id: upload-release-asset 
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./target/release/maestro
-        asset_name: maestro
-        asset_content_type: application/octet-stream
+    # - name: Upload Release Asset
+    #   id: upload-release-asset 
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_path: ./target/release/maestro
+    #     asset_name: maestro
+    #     asset_content_type: application/octet-stream
