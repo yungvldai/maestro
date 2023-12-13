@@ -1,4 +1,4 @@
-use std::{path::Path, env};
+use std::{env, path::Path};
 
 fn is_relative_path(path_str: &String) -> bool {
     let path = Path::new(&path_str);
@@ -10,10 +10,7 @@ pub fn normalize_path(path_str: String) -> String {
         let pwd = env::current_dir().expect("unable to get cwd");
         let config_path = Path::new(pwd.as_path()).join(path_str);
 
-        config_path
-            .into_os_string()
-            .into_string()
-            .unwrap()
+        config_path.into_os_string().into_string().unwrap()
     } else {
         Path::new(&path_str)
             .to_path_buf()

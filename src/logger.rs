@@ -1,6 +1,6 @@
 use std::env;
 
-use env_logger::{Env, Builder};
+use env_logger::{Builder, Env};
 
 pub fn init_logger(level: String) {
     if env::var("RUST_LOG").is_err() {

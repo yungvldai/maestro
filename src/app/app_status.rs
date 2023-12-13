@@ -5,7 +5,7 @@ pub enum AppStatus {
     Init,
     Running,
     Stopping,
-    Stopped
+    Stopped,
 }
 
 impl fmt::Display for AppStatus {

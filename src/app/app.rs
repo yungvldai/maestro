@@ -1,4 +1,11 @@
-use std::{process::{Command, Child, Stdio, ExitStatus}, os::unix::process::CommandExt, env, time::{SystemTime, UNIX_EPOCH, Duration}, io::{Error, ErrorKind}, fs::File};
+use std::{
+    env,
+    fs::File,
+    io::{Error, ErrorKind},
+    os::unix::process::CommandExt,
+    process::{Child, Command, ExitStatus, Stdio},
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use crate::{config::ConfigReadinessProbe, readiness_probe, utils::normalize_path};
 
@@ -22,7 +29,7 @@ pub struct App {
     ready_checked_at: Option<Duration>,
 
     stdout: Option<String>,
-    stderr: Option<String>
+    stderr: Option<String>,
 }
 
 fn get_now() -> Duration {
@@ -32,14 +39,14 @@ fn get_now() -> Duration {
 impl App {
     #[warn(clippy::too_many_arguments)]
     pub fn new(
-        name: String, 
+        name: String,
         command: Vec<String>,
         uid: u32,
         readiness_probe: ConfigReadinessProbe,
         signal: i32,
 
         stdout: Option<String>,
-        stderr: Option<String>
+        stderr: Option<String>,
     ) -> Self {
         let app = Self {
             name: name.to_owned(),
@@ -49,7 +56,7 @@ impl App {
             signal,
             stdout,
             stderr,
-            
+
             process: None,
             status: AppStatus::Init,
             ready: false,
@@ -105,21 +112,23 @@ impl App {
 
     fn redirect_stdio(&self, to: Option<String>) -> Stdio {
         if to.to_owned().is_some_and(|x| x == "inherit") {
-            return Stdio::inherit()
+            return Stdio::inherit();
         }
 
         match to {
             None => Stdio::null(),
-            Some(value) => {
-                match File::create(normalize_path(value.to_owned())) {
-                    Ok(file) => Stdio::from(file),
-                    Err(err) => {
-                        log::warn!("unable to create log file for app \"{}\", {}", self.name, err.to_string());
+            Some(value) => match File::create(normalize_path(value.to_owned())) {
+                Ok(file) => Stdio::from(file),
+                Err(err) => {
+                    log::warn!(
+                        "unable to create log file for app \"{}\", {}",
+                        self.name,
+                        err.to_string()
+                    );
 
-                        Stdio::null()
-                    }
+                    Stdio::null()
                 }
-            }
+            },
         }
     }
 
@@ -151,18 +160,22 @@ impl App {
 
                 log::info!("app \"{}\" is started, pid: {}", self.name, pid);
                 self.set_status(AppStatus::Running);
-            },
+            }
             Err(err) => {
-                log::error!("unable to run the app \"{}\", {}", self.name, err.to_string());
+                log::error!(
+                    "unable to run the app \"{}\", {}",
+                    self.name,
+                    err.to_string()
+                );
                 self.set_status(AppStatus::Stopped);
             }
-        }        
+        }
     }
 
     fn update_readiness(&mut self) {
         if self.status == AppStatus::Init {
             /*
-             * For an app to be considered ready, it must at least be RUNNING 
+             * For an app to be considered ready, it must at least be RUNNING
              */
             return;
         }
@@ -170,52 +183,54 @@ impl App {
         let now = get_now();
 
         match &self.readiness_probe {
-            ConfigReadinessProbe::Command { command, period } => {
-                match self.ready_checked_at {
-                    None => {
+            ConfigReadinessProbe::Command { command, period } => match self.ready_checked_at {
+                None => {
+                    self.ready_checked_at = Some(now);
+                    self.set_readiness(readiness_probe::command(command.to_owned()));
+                }
+                Some(last_ready_checked) => {
+                    if now.as_millis() - last_ready_checked.as_millis() >= *period as u128 {
                         self.ready_checked_at = Some(now);
                         self.set_readiness(readiness_probe::command(command.to_owned()));
-                    },
-                    Some(last_ready_checked) => {
-                        if now.as_millis() - last_ready_checked.as_millis() >= *period as u128 { 
-                            self.ready_checked_at = Some(now);
-                            self.set_readiness(readiness_probe::command(command.to_owned()));
-                        }
                     }
                 }
             },
-            ConfigReadinessProbe::Delay { delay } => {
-                match self.started_at {
-                    None => (),
-                    Some(started) => {
-                        self.set_readiness(now.as_millis() - started.as_millis() >= *delay as u128);
-                    }
+            ConfigReadinessProbe::Delay { delay } => match self.started_at {
+                None => (),
+                Some(started) => {
+                    self.set_readiness(now.as_millis() - started.as_millis() >= *delay as u128);
                 }
             },
-            ConfigReadinessProbe::Http { url, method, period } => {
-                match self.ready_checked_at {
-                    None => {
+            ConfigReadinessProbe::Http {
+                url,
+                method,
+                period,
+            } => match self.ready_checked_at {
+                None => {
+                    self.ready_checked_at = Some(now);
+                    self.set_readiness(readiness_probe::http(method.to_owned(), url.to_owned()));
+                }
+                Some(last_ready_checked) => {
+                    if now.as_millis() - last_ready_checked.as_millis() >= *period as u128 {
                         self.ready_checked_at = Some(now);
-                        self.set_readiness(readiness_probe::http(method.to_owned(), url.to_owned()));
-                    },
-                    Some(last_ready_checked) => {
-                        if now.as_millis() - last_ready_checked.as_millis() >= *period as u128 { 
-                            self.ready_checked_at = Some(now);
-                            self.set_readiness(readiness_probe::http(method.to_owned(), url.to_owned()));
-                        }
+                        self.set_readiness(readiness_probe::http(
+                            method.to_owned(),
+                            url.to_owned(),
+                        ));
                     }
                 }
             },
-            ConfigReadinessProbe::ExitCode { exit_code } => {
-                self.set_readiness(
-                    self.status == AppStatus::Stopped && 
-                    self.exit_code.is_some_and(|x| x == *exit_code)
-                )
-            },
+            ConfigReadinessProbe::ExitCode { exit_code } => self.set_readiness(
+                self.status == AppStatus::Stopped
+                    && self.exit_code.is_some_and(|x| x == *exit_code),
+            ),
             ConfigReadinessProbe::None => {
-                log::info!("no readiness probe is preseted for app \"{}\", considering as ready", self.name);
+                log::info!(
+                    "no readiness probe is preseted for app \"{}\", considering as ready",
+                    self.name
+                );
                 self.set_readiness(true);
-            },
+            }
         }
     }
 
@@ -226,17 +241,21 @@ impl App {
             if let Some(process) = &mut self.process {
                 match process.try_wait() {
                     Err(err) => {
-                        log::error!("unable to check the app \"{}\", {}", self.name, err.to_string());
+                        log::error!(
+                            "unable to check the app \"{}\", {}",
+                            self.name,
+                            err.to_string()
+                        );
                         self.set_status(AppStatus::Stopped);
-                    },
+                    }
                     Ok(exit_status) => {
                         if let Some(es) = exit_status {
                             self.exit_code = es.code();
-        
+
                             if let Some(code) = self.exit_code {
                                 log::info!("app \"{}\" exited with code {}", self.name, code);
                             }
-        
+
                             self.set_status(AppStatus::Stopped);
                         }
                     }
@@ -261,16 +280,14 @@ impl App {
         }
 
         let exec_kill = || -> Result<ExitStatus, Error> {
-            let pid = self.get_pid()
+            let pid = self
+                .get_pid()
                 .ok_or(Error::new(ErrorKind::Other, "no pid"))?
                 .to_string();
             let signal = self.signal.to_string();
 
             let exit_status = Command::new("kill")
-                .args([
-                    format!("-{}", signal.as_str()), 
-                    pid
-                ])
+                .args([format!("-{}", signal.as_str()), pid])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .spawn()?
@@ -287,9 +304,13 @@ impl App {
                 } else {
                     self.set_status(AppStatus::Stopping);
                 }
-            },
+            }
             Err(err) => {
-                log::warn!("unable to kill the app \"{}\" gracefully, {}", self.name, err.to_string());
+                log::warn!(
+                    "unable to kill the app \"{}\" gracefully, {}",
+                    self.name,
+                    err.to_string()
+                );
                 self.kill();
             }
         }

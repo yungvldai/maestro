@@ -140,7 +140,7 @@ When stopping `maestro`, it will wait for all dependents to stop before proceedi
 
 By default, apps are considered ready immediately after start. This can be changed by configuring a readiness probe using this option.
 
-##### exit_code
+##### `exit_code`
 
 The application will be considered **READY** if it exits with the specified code. This is useful if you need to run a script before the application.
 
@@ -158,7 +158,7 @@ apps:
       - migrations
 ```
 
-##### delay
+##### `delay`
 
 The application will be considered **READY** after the specified number of milliseconds following its launch.
 
@@ -170,9 +170,9 @@ apps:
       delay: 5000
 ```
 
-##### command
+##### `command`
 
-##### http
+##### `http`
 
 ## Known issues
 

@@ -1,5 +1,5 @@
-use std::{process, fs::File};
 use std::io::Write;
+use std::{fs::File, process};
 
 use crate::utils::normalize_path;
 

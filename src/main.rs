@@ -1,22 +1,25 @@
-mod config;
 mod app;
-mod user;
+mod config;
 mod logger;
-mod readiness_probe;
 mod pid;
+mod readiness_probe;
+mod user;
 mod utils;
 
-use std::{thread, time, sync::mpsc};
+use crate::{app::AppsMap, logger::init_logger, pid::init_pid};
 use app::AppStatus;
 use config::Config;
-use signal_hook::{iterator::Signals, consts::{SIGTERM, SIGINT}};
-use crate::{logger::init_logger, app::AppsMap, pid::init_pid};
+use signal_hook::{
+    consts::{SIGINT, SIGTERM},
+    iterator::Signals,
+};
+use std::{sync::mpsc, thread, time};
 
 const POLL_PERIOD: u64 = 100;
 
 enum MainState {
     Running,
-    Stopping
+    Stopping,
 }
 
 fn main() {
@@ -24,7 +27,7 @@ fn main() {
 
     init_logger(config.log_level.to_owned());
     init_pid(config.pid.to_owned());
-    
+
     log::debug!("loaded config {:#?}", config);
 
     let mut signals = Signals::new([SIGTERM, SIGINT]).unwrap();
@@ -61,22 +64,26 @@ fn main() {
                             app.run();
                         }
                     }
-        
-                    if app.get_status() == AppStatus::Stopped && app.get_exit_code().unwrap_or(1) != 0 {
+
+                    if app.get_status() == AppStatus::Stopped
+                        && app.get_exit_code().unwrap_or(1) != 0
+                    {
                         /*
                          * The app failed, so system operation is not guaranteed
                          */
                         state = MainState::Stopping;
                     }
-                },
+                }
                 MainState::Stopping => {
                     if app.get_status() == AppStatus::Running {
-                        let ready = apps_map
-                            .get_dependents_for(&app.get_name())
-                            .iter()
-                            .all(|app_name| {
-                                apps_map.get(app_name).unwrap().borrow().get_status() == AppStatus::Stopped
-                            });
+                        let ready =
+                            apps_map
+                                .get_dependents_for(&app.get_name())
+                                .iter()
+                                .all(|app_name| {
+                                    apps_map.get(app_name).unwrap().borrow().get_status()
+                                        == AppStatus::Stopped
+                                });
 
                         if ready {
                             app.stop();
@@ -86,19 +93,19 @@ fn main() {
             }
         }
 
-        if apps_map.every(|app| {
-            [AppStatus::Stopped, AppStatus::Init].contains(&app.borrow().get_status())
-        }) {
+        if apps_map
+            .every(|app| [AppStatus::Stopped, AppStatus::Init].contains(&app.borrow().get_status()))
+        {
             /*
-             * Finding all apps in the `Stopped` and `Init` statuses means 
-             * that apps that were running have already been stopped, and apps that 
-             * were not running will no longer start. 
-             * 
+             * Finding all apps in the `Stopped` and `Init` statuses means
+             * that apps that were running have already been stopped, and apps that
+             * were not running will no longer start.
+             *
              * In this case, we can do break
              */
 
             log::info!("all apps are stopped or have not been started, stopping...");
-            
+
             break;
         }
 

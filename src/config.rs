@@ -1,8 +1,8 @@
-use std::{env, path::Path, fs::File, collections::HashMap};
+use std::{collections::HashMap, env, fs::File, path::Path};
 
 use serde::Deserialize;
 use serde_yaml::Value;
-use signal_hook::consts::{SIGTERM, SIGINT};
+use signal_hook::consts::{SIGINT, SIGTERM};
 
 use crate::user::get_uid_by_name;
 
@@ -46,12 +46,12 @@ where
     D: serde::Deserializer<'de>,
 {
     let value: Value = Deserialize::deserialize(deserializer)?;
-    
+
     let uid = match value {
         Value::String(string_value) => {
             let first = match string_value.chars().next() {
                 Some(value) => value,
-                None => panic!("user value is empty")
+                None => panic!("user value is empty"),
             };
 
             // linux user must start with an alphabetic character
@@ -59,19 +59,15 @@ where
             if first.is_ascii_digit() {
                 match string_value.parse::<u32>() {
                     Ok(value) => value,
-                    Err(_) => panic!("unable to parse string: {}", string_value)
+                    Err(_) => panic!("unable to parse string: {}", string_value),
                 }
             } else {
                 get_uid_by_name(string_value)
             }
-        },
-        Value::Number(number) => {
-            match number.as_u64() {
-                Some(num_u64) => {
-                    u32::try_from(num_u64).expect("provided uid is invalid (too large)")
-                },
-                None => panic!("unable to parse uid")
-            }
+        }
+        Value::Number(number) => match number.as_u64() {
+            Some(num_u64) => u32::try_from(num_u64).expect("provided uid is invalid (too large)"),
+            None => panic!("unable to parse uid"),
         },
         _ => {
             panic!("unable to parse user value, expected string or number");
@@ -86,26 +82,18 @@ where
     D: serde::Deserializer<'de>,
 {
     let value: Value = Deserialize::deserialize(deserializer)?;
-    
+
     let signal = match value {
-        Value::String(string_value) => {
-            match string_value.to_lowercase().as_str() {
-                "sigterm" | "term" => {
-                    SIGTERM
-                },
-                "sigint" | "int" => {
-                    SIGINT
-                },
-                _ => panic!("unknown signal name {}", string_value)
-            }
+        Value::String(string_value) => match string_value.to_lowercase().as_str() {
+            "sigterm" | "term" => SIGTERM,
+            "sigint" | "int" => SIGINT,
+            _ => panic!("unknown signal name {}", string_value),
         },
-        Value::Number(number) => {
-            match number.as_i64() {
-                Some(num_i64) => {
-                    i32::try_from(num_i64).expect("provided signal is invalid (too large)")
-                },
-                None => panic!("unable to parse signal number")
+        Value::Number(number) => match number.as_i64() {
+            Some(num_i64) => {
+                i32::try_from(num_i64).expect("provided signal is invalid (too large)")
             }
+            None => panic!("unable to parse signal number"),
         },
         _ => {
             panic!("unable to parse signal, expected string or number");
@@ -120,16 +108,16 @@ where
 pub enum ConfigReadinessProbe {
     None,
     ExitCode {
-        exit_code: i32
+        exit_code: i32,
     },
     Delay {
-        delay: u32
+        delay: u32,
     },
     Command {
         command: Vec<String>,
 
         #[serde(default = "default_ready_command_period")]
-        period: u32
+        period: u32,
     },
     Http {
         url: String,
@@ -138,8 +126,8 @@ pub enum ConfigReadinessProbe {
         method: String,
 
         #[serde(default = "default_ready_command_period")]
-        period: u32
-    }
+        period: u32,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -162,7 +150,7 @@ pub struct ConfigApp {
     pub depends_on: Vec<String>,
 
     #[serde(default = "default_ready")]
-    pub ready: ConfigReadinessProbe
+    pub ready: ConfigReadinessProbe,
 }
 
 #[derive(Debug, Deserialize)]
@@ -173,7 +161,7 @@ pub struct Config {
     pub log_level: String,
 
     #[serde(default = "default_apps")]
-    pub apps: Vec<ConfigApp>
+    pub apps: Vec<ConfigApp>,
 }
 
 impl Config {
@@ -191,10 +179,11 @@ impl Config {
 
         let file = File::open(etc_config_path.to_owned()).expect(
             format!(
-                    "config file not found, checked: {} and {}", 
-                    cwd_config_path.to_str().unwrap(), 
-                    etc_config_path.to_str().unwrap()
-                ).as_str()
+                "config file not found, checked: {} and {}",
+                cwd_config_path.to_str().unwrap(),
+                etc_config_path.to_str().unwrap()
+            )
+            .as_str(),
         );
 
         let config: Config = serde_yaml::from_reader(file).unwrap();
@@ -204,7 +193,7 @@ impl Config {
 
     pub fn validate(self) -> Self {
         let mut apps_map: HashMap<String, &ConfigApp> = HashMap::new();
-    
+
         for app in self.apps.iter() {
             if app.command.is_empty() {
                 panic!("command is not presented for app: \"{}\"", app.name);
@@ -213,10 +202,10 @@ impl Config {
             if apps_map.contains_key(&app.name) {
                 panic!("Application names must be unique");
             }
-    
+
             apps_map.insert(app.name.to_owned(), app);
         }
-    
+
         for app in self.apps.iter() {
             for dep in app.depends_on.iter() {
                 // TODO check cycles
@@ -227,11 +216,14 @@ impl Config {
 
                 let dep_app = match apps_map.get(dep) {
                     Some(value) => value,
-                    None => panic!("unknown dependency: \"{}\"", dep)
+                    None => panic!("unknown dependency: \"{}\"", dep),
                 };
-    
+
                 if let ConfigReadinessProbe::None = dep_app.ready {
-                    panic!("app \"{}\" has dependents, but does not have a readiness probe", dep_app.name);
+                    panic!(
+                        "app \"{}\" has dependents, but does not have a readiness probe",
+                        dep_app.name
+                    );
                 }
             }
         }

@@ -1,4 +1,9 @@
-use std::{process::{Command, ExitStatus, Stdio}, env, io::Error, time::Instant};
+use std::{
+    env,
+    io::Error,
+    process::{Command, ExitStatus, Stdio},
+    time::Instant,
+};
 
 pub fn command(cmd: Vec<String>) -> bool {
     if cmd.is_empty() {
@@ -33,9 +38,14 @@ pub fn command(cmd: Vec<String>) -> bool {
             log::debug!("command \"{}\" OK, took {} ms", cmd.join(" "), took);
 
             value.success()
-        },
+        }
         Err(err) => {
-            log::warn!("command \"{}\" FAILED, took {} ms, {}", cmd.join(" "), took, err.to_string());
+            log::warn!(
+                "command \"{}\" FAILED, took {} ms, {}",
+                cmd.join(" "),
+                took,
+                err.to_string()
+            );
 
             false
         }

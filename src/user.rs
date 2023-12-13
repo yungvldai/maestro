@@ -9,18 +9,22 @@ pub fn get_uid_by_name(name: String) -> u32 {
 
     match out.status.code() {
         Some(0) => (),
-        Some(code) => panic!("unable to get uid for user \"{}\", status code \"{}\"", name, code),
+        Some(code) => panic!(
+            "unable to get uid for user \"{}\", status code \"{}\"",
+            name, code
+        ),
         None => panic!("unable to get uid for user \"{}\", no status code", name),
     }
 
     let stdout = match std::str::from_utf8(&out.stdout) {
-        Ok(str) => {
-            String::from(str)
-        },
+        Ok(str) => String::from(str),
         Err(_) => {
             panic!("unable to get uid, non utf-8 output");
         }
     };
 
-    stdout.trim().parse::<u32>().expect("unable to get uid, non numeric output")
+    stdout
+        .trim()
+        .parse::<u32>()
+        .expect("unable to get uid, non numeric output")
 }
