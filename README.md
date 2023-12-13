@@ -35,6 +35,8 @@ Simple processes manager
 
 ## Installation
 
+You can check existing builds and versions [here](https://github.com/yungvldai/maestro/releases).
+
 ```bash
 export MAESTRO_VERSION=1.0.0 # Specify required version
 export MAESTRO_BUILD=linux-musl # Specify required build
