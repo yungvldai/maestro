@@ -49,7 +49,7 @@ jobs:
     - name: Installing deps
       run: |
         if [ "${{ matrix.platform.target }}" == "x86_64-unknown-linux-musl" ]; then
-          apt install musl-tools
+          sudo apt-get install musl-tools
         fi
 
     - name: Build app for ${{ matrix.platform.name }}
