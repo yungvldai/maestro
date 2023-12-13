@@ -1,6 +1,6 @@
 apps:
   - name: db
-    user: vi
+    # user: vi
     command: ["./mocks/long-proc.sh"]
     ready: 
       command: ["./mocks/wait.sh"]

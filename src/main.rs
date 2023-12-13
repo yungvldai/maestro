@@ -2,7 +2,7 @@ mod config;
 mod app;
 mod user;
 mod logger;
-mod readiness;
+mod readiness_probe;
 mod pid;
 mod utils;
 
@@ -20,7 +20,7 @@ enum MainState {
 }
 
 fn main() {
-    let config = Config::new();
+    let config = Config::new().validate();
 
     init_logger(config.log_level.to_owned());
     init_pid(config.pid.to_owned());
@@ -55,13 +55,7 @@ fn main() {
                         let ready = apps_map
                             .get_dependencies_for(&app.get_name())
                             .iter()
-                            .all(|app_name| {
-                                let dep_app = apps_map.get(app_name).unwrap().borrow();
-
-                                dep_app.get_status() == AppStatus::Running ||
-                                // `stopped` with exit code 0 is OK?
-                                (dep_app.get_status() == AppStatus::Stopped && dep_app.get_exit_code() == Some(0))
-                            });
+                            .all(|app_name| apps_map.get(app_name).unwrap().borrow().is_ready());
 
                         if ready {
                             app.run();
@@ -81,9 +75,7 @@ fn main() {
                             .get_dependents_for(&app.get_name())
                             .iter()
                             .all(|app_name| {
-                                let dep_app = apps_map.get(app_name).unwrap().borrow();
-
-                                dep_app.get_status() == AppStatus::Stopped
+                                apps_map.get(app_name).unwrap().borrow().get_status() == AppStatus::Stopped
                             });
 
                         if ready {

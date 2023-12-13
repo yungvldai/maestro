@@ -1,6 +1,6 @@
-use std::{process::{Command, Child, Stdio, ExitStatus}, os::unix::process::CommandExt, env, time::{SystemTime, UNIX_EPOCH, Duration}, io::{Error, ErrorKind}};
+use std::{process::{Command, Child, Stdio, ExitStatus}, os::unix::process::CommandExt, env, time::{SystemTime, UNIX_EPOCH, Duration}, io::{Error, ErrorKind}, fs::File};
 
-use crate::{config::ConfigReady, readiness};
+use crate::{config::ConfigReadinessProbe, readiness_probe, utils::normalize_path};
 
 use super::AppStatus;
 
@@ -9,7 +9,8 @@ pub struct App {
     name: String,
     command: Vec<String>,
     uid: u32,
-    ready: ConfigReady,
+    ready: bool,
+    readiness_probe: ConfigReadinessProbe,
     signal: i32,
 
     process: Option<Child>,
@@ -34,7 +35,7 @@ impl App {
         name: String, 
         command: Vec<String>,
         uid: u32,
-        ready: ConfigReady,
+        readiness_probe: ConfigReadinessProbe,
         signal: i32,
 
         stdout: Option<String>,
@@ -44,19 +45,19 @@ impl App {
             name: name.to_owned(),
             command,
             uid,
-            ready,
+            readiness_probe,
             signal,
-
+            stdout,
+            stderr,
+            
             process: None,
             status: AppStatus::Init,
+            ready: false,
             exit_code: None,
 
             started_at: None,
             updated_at: get_now(),
             ready_checked_at: None,
-
-            stdout,
-            stderr
         };
 
         log::info!("app \"{}\" created", name);
@@ -68,6 +69,14 @@ impl App {
         self.status = status;
 
         log::info!("app \"{}\" status changed to {}", self.name, status);
+    }
+
+    fn set_readiness(&mut self, ready: bool) {
+        self.ready = ready;
+
+        if ready {
+            log::info!("app \"{}\" is READY now", self.name);
+        }
     }
 
     pub fn get_name(&self) -> String {
@@ -90,15 +99,32 @@ impl App {
         None
     }
 
-    pub fn run(&mut self) {
-        if self.status != AppStatus::Init {
-            return;
+    pub fn is_ready(&self) -> bool {
+        self.ready
+    }
+
+    fn redirect_stdio(&self, to: Option<String>) -> Stdio {
+        if to.to_owned().is_some_and(|x| x == "inherit") {
+            return Stdio::inherit()
         }
 
-        if self.command.is_empty() {
-            log::error!("command is not preseted for app \"{}\"", self.name);
-            self.set_status(AppStatus::Stopped);
+        match to {
+            None => Stdio::null(),
+            Some(value) => {
+                match File::create(normalize_path(value.to_owned())) {
+                    Ok(file) => Stdio::from(file),
+                    Err(err) => {
+                        log::warn!("unable to create log file for app \"{}\", {}", self.name, err.to_string());
 
+                        Stdio::null()
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn run(&mut self) {
+        if self.status != AppStatus::Init {
             return;
         }
 
@@ -107,30 +133,24 @@ impl App {
         let args = full_command;
         let envs = env::vars();
 
-        let stdout_pipe = match self.stdout {
-            None => Stdio::null(),
-            _ => Stdio::null()
-        };
-
-        let stderr_pipe = match self.stderr {
-            None => Stdio::null(),
-            _ => Stdio::null()
-        };
-
         let result = Command::new(executable)
             .envs(envs)
             .args(args)
             .uid(self.uid)
             .stdin(Stdio::null())
-            .stdout(stdout_pipe)
-            .stderr(stderr_pipe)
+            .stdout(self.redirect_stdio(self.stdout.to_owned()))
+            .stderr(self.redirect_stdio(self.stderr.to_owned()))
             .spawn();
 
         match result {
             Ok(child) => {
+                let pid = child.id();
+
                 self.process = Some(child);
                 self.started_at = Some(get_now());
-                self.set_status(AppStatus::Started);
+
+                log::info!("app \"{}\" is started, pid: {}", self.name, pid);
+                self.set_status(AppStatus::Running);
             },
             Err(err) => {
                 log::error!("unable to run the app \"{}\", {}", self.name, err.to_string());
@@ -139,66 +159,68 @@ impl App {
         }        
     }
 
-    fn check_ready(&mut self) -> bool {
+    fn update_readiness(&mut self) {
+        if self.status == AppStatus::Init {
+            /*
+             * For an app to be considered ready, it must at least be RUNNING 
+             */
+            return;
+        }
+
         let now = get_now();
 
-        match &self.ready {
-            ConfigReady::Command { command, period } => {
+        match &self.readiness_probe {
+            ConfigReadinessProbe::Command { command, period } => {
                 match self.ready_checked_at {
                     None => {
                         self.ready_checked_at = Some(now);
-
-                        readiness::command(command.to_owned())
+                        self.set_readiness(readiness_probe::command(command.to_owned()));
                     },
                     Some(last_ready_checked) => {
                         if now.as_millis() - last_ready_checked.as_millis() >= *period as u128 { 
                             self.ready_checked_at = Some(now);
-
-                            readiness::command(command.to_owned())
-                        } else {
-                            false
+                            self.set_readiness(readiness_probe::command(command.to_owned()));
                         }
                     }
                 }
             },
-            ConfigReady::Delay { delay } => {
+            ConfigReadinessProbe::Delay { delay } => {
                 match self.started_at {
-                    None => false,
+                    None => (),
                     Some(started) => {
-                        now.as_millis() - started.as_millis() >= *delay as u128
+                        self.set_readiness(now.as_millis() - started.as_millis() >= *delay as u128);
                     }
                 }
             },
-            ConfigReady::Http { url, method, period } => {
+            ConfigReadinessProbe::Http { url, method, period } => {
                 match self.ready_checked_at {
                     None => {
                         self.ready_checked_at = Some(now);
-
-                        readiness::http(method.to_owned(), url.to_owned())
+                        self.set_readiness(readiness_probe::http(method.to_owned(), url.to_owned()));
                     },
                     Some(last_ready_checked) => {
                         if now.as_millis() - last_ready_checked.as_millis() >= *period as u128 { 
                             self.ready_checked_at = Some(now);
-
-                            readiness::http(method.to_owned(), url.to_owned())
-                        } else {
-                            false
+                            self.set_readiness(readiness_probe::http(method.to_owned(), url.to_owned()));
                         }
                     }
                 }
             },
-            ConfigReady::None => {
+            ConfigReadinessProbe::ExitCode { exit_code } => {
+                self.set_readiness(
+                    self.status == AppStatus::Stopped && 
+                    self.exit_code.is_some_and(|x| x == *exit_code)
+                )
+            },
+            ConfigReadinessProbe::None => {
                 log::info!("no readiness probe is preseted for app \"{}\", considering as ready", self.name);
-
-                true
+                self.set_readiness(true);
             },
         }
     }
 
     pub fn update(&mut self) {
-        if self.status == AppStatus::Started && self.check_ready() {
-            self.set_status(AppStatus::Running);
-        }
+        self.update_readiness();
 
         if self.status != AppStatus::Stopped && self.exit_code.is_none() {
             if let Some(process) = &mut self.process {
@@ -234,7 +256,7 @@ impl App {
     }
 
     pub fn stop(&mut self) {
-        if self.status != AppStatus::Started && self.status != AppStatus::Running {
+        if self.status != AppStatus::Running {
             return;
         }
 

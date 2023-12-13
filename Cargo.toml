@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 env_logger = "0.10.1"
+libc = "0.2.151"
 log = "0.4.20"
 serde = { version = "1.0.193", features = ["derive"] }
 serde_yaml = "0.9.27"

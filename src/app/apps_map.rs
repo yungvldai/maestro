@@ -1,8 +1,8 @@
-use std::{collections::{HashMap, hash_map::Values}, cell::{RefCell, Ref}};
+use std::{collections::{HashMap, hash_map::Values}, cell::RefCell};
 
 use crate::config::ConfigApp;
 
-use super::{App, AppStatus};
+use super::App;
 
 pub struct AppsMap {
     map: HashMap<String, RefCell<App>>,
@@ -32,7 +32,7 @@ impl AppsMap {
             for dep in config_app.depends_on {
                 run_before
                     .entry(dep)
-                    .or_insert(vec![])
+                    .or_default()
                     .push(config_app.name.to_owned());
             }
     
@@ -77,31 +77,4 @@ impl AppsMap {
             Some(value) => value.to_owned()
         }
     }
-
-    // pub fn check_deps_resolved_for(&self, app: &Ref<'_, App>) -> bool {
-    //     let mut deps_resolved = true;
-
-    //     for dep in app.get_deps() {
-    //         match self.0.get(&dep) {
-    //             Some(dep_app) => {
-    //                 if dep_app.borrow().get_status() != AppStatus::Running {
-    //                     deps_resolved = false;
-
-    //                     break;
-    //                 }
-    //             },
-    //             None => {
-    //                 /* 
-    //                     * If the app depends on a non-existent app, 
-    //                     * then we cannot launch it
-    //                     */
-    //                 deps_resolved = false;
-
-    //                 break;
-    //             }
-    //         };
-    //     }
-
-    //     deps_resolved
-    // }
 }

@@ -1,6 +1,12 @@
 use std::{process::{Command, ExitStatus, Stdio}, env, io::Error, time::Instant};
 
 pub fn command(cmd: Vec<String>) -> bool {
+    if cmd.is_empty() {
+        log::warn!("readiness probe command is not presented");
+
+        return false;
+    }
+
     let mut full_command: Vec<_> = cmd.iter().map(|i| i.trim()).collect();
     let executable = full_command.remove(0);
     let args = full_command;
