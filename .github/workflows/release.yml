@@ -72,6 +72,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./target/${{ matrix.platform.name }}/release/maestro
-        asset_name: maestro-bin-${{ matrix.platform.target }}
+        asset_path: ./target/${{ matrix.platform.target }}/release/maestro
+        asset_name: maestro-bin-${{ matrix.platform.name }}
         asset_content_type: application/octet-stream
