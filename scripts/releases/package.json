@@ -2,7 +2,7 @@
   "name": "releases",
   "type": "module",
   "bin": {
-    "get-tag": "./get-tag.js"
+    "create-next": "./create-next.js"
   },
   "dependencies": {
     "@actions/github": "^6.0.0",

@@ -2,15 +2,16 @@
 
 import github from '@actions/github';
 import semver from 'semver';
-import { writeFileSync } from 'fs';
+import { writeFileSync, readFileSync } from 'fs';
 
 const RELEASE_BRANCH_REGEX = /^release-(\d+\.\d+)$/;
 
 const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
-const context = github.context.payload;
+const context = github.context;
 
 const BRANCH_NAME = (context.ref || '').replace('refs/heads/', '');
-const [OWNER, REPO] = (context.repository.full_name || '').split('/');
+const [OWNER, REPO] = (context.payload.repository.full_name || '').split('/');
+const COMMIT_SHA = context.sha;
 
 const panic = (...messages) => {
     console.error(...messages);
@@ -27,6 +28,8 @@ if (!OWNER || !REPO) {
 
 console.log('Detected repo:', `${OWNER}/${REPO}`);
 console.log('Detected branch name:', BRANCH_NAME);
+
+const body = readFileSync('./RELEASE_NOTES.md', { encoding: 'utf-8' });
 
 const match = BRANCH_NAME.match(RELEASE_BRANCH_REGEX);
 
@@ -94,8 +97,20 @@ if (latestReleaseByBranch) {
     tag = semver.parse(branchTag + '.0').version;
 }
 
-const isLatest = semver.gt(tag, latestRelease.tag_name);
-
 console.log('tag:', tag);
 
-writeFileSync('./tag.txt', `tag=${tag}\nmake-latest=${isLatest}`);
+const {
+    data: { upload_url: uploadUrl }
+} = await octokit.rest.repos.createRelease({
+    make_latest: semver.gt(tag, latestRelease.tag_name),
+    owner: OWNER,
+    repo: REPO,
+    tag_name: tag,
+    name: `Release ${tag}`,
+    body: body,
+    draft: false,
+    prerelease: false,
+    target_commitish: COMMIT_SHA
+})
+
+writeFileSync('./out.txt', `tag=${tag}\nupload-url=${uploadUrl}`);

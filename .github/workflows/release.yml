@@ -9,11 +9,12 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  get-tag:
+  next-release:
     runs-on: ubuntu-latest
 
     outputs:
-      get-tag: ${{ steps.run-get-tag.outputs.tag }}
+      tag: ${{ steps.run-script.outputs.tag }}
+      upload-url: ${{ steps.run-script.outputs.upload-url }}
 
     steps:
       - name: Checkout
@@ -24,40 +25,16 @@ jobs:
         run: npm ci
 
       - name: Run
-        id: run-get-tag
+        id: run-script
         working-directory: ./scripts/releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm x get-tag && cat tag.txt >> "$GITHUB_OUTPUT"
-
-  create-release:
-    runs-on: ubuntu-latest
-
-    needs: get-tag
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Create Release
-        id: create-release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ needs.get-tag.outputs.get-tag }}
-          release_name: Release ${{ needs.get-tag.outputs.get-tag }}
-          draft: false
-          body_path: ./RELEASE_NOTES.md
-          prerelease: false
-
-    outputs:
-      upload-url: ${{ steps.create-release.outputs.upload_url }}
+        run: npm x create-next && cat tag.txt >> "$GITHUB_OUTPUT"
 
   build-upload-assets:
     name: Release - ${{ matrix.platform.target }}
 
-    needs: create-release
+    needs: next-release
 
     strategy:
       matrix:
@@ -114,7 +91,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload-url }}
+          upload_url: ${{ needs.next-release.outputs.upload-url }}
           asset_path: ./maestro-${{ matrix.platform.name }}.zip
           asset_name: maestro-${{ matrix.platform.name }}.zip
           asset_content_type: application/zip
