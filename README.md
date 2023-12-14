@@ -85,7 +85,7 @@ apps:
 
 You can redirect stdout and stderr to a file, to your terminal, or completely mute them. To do this, use the `stdout` and `stderr` options.
 
-For redirecting to a file, the option should take a value - the path to the file. Ensure that the specified `user` for the app has the capabiltiy to write to this file.
+For redirecting to a file, the option should take a value - the path to the file. Ensure that the user who running the `maestro` has the capabiltiy to write to this file. Do not worry, `maestro` will create nested directories automatically.
 
 Example:
 

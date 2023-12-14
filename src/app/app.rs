@@ -1,6 +1,5 @@
 use std::{
     env,
-    fs::File,
     io::{Error, ErrorKind},
     os::unix::process::CommandExt,
     process::{Child, Command, ExitStatus, Stdio},
@@ -9,6 +8,7 @@ use std::{
 
 use crate::{
     config::ConfigReadinessProbe,
+    fs::open_file,
     readiness_probe,
     utils::{get_now, normalize_path},
 };
@@ -78,12 +78,9 @@ impl App {
         log::info!("app \"{}\" status changed to {}", self.name, status);
     }
 
-    fn set_readiness(&mut self, ready: bool) {
-        self.ready = ready;
-
-        if ready {
-            log::info!("app \"{}\" is READY now", self.name);
-        }
+    fn set_ready(&mut self) {
+        self.ready = true;
+        log::info!("app \"{}\" is READY now", self.name);
     }
 
     pub fn get_name(&self) -> String {
@@ -117,7 +114,7 @@ impl App {
 
         match to {
             None => Stdio::null(),
-            Some(value) => match File::create(normalize_path(value.to_owned())) {
+            Some(value) => match open_file(normalize_path(value.to_owned())) {
                 Ok(file) => Stdio::from(file),
                 Err(err) => {
                     log::warn!(
@@ -173,7 +170,7 @@ impl App {
     }
 
     fn update_readiness(&mut self) {
-        if self.status == AppStatus::Init {
+        if self.status == AppStatus::Init || self.ready {
             /*
              * For an app to be considered ready, it must at least be RUNNING
              */
@@ -186,19 +183,27 @@ impl App {
             ConfigReadinessProbe::Command { command, period } => match self.ready_checked_at {
                 None => {
                     self.ready_checked_at = Some(now);
-                    self.set_readiness(readiness_probe::command(command.to_owned()));
+
+                    if readiness_probe::command(command.to_owned()) {
+                        self.set_ready();
+                    }
                 }
                 Some(last_ready_checked) => {
                     if now.as_millis() - last_ready_checked.as_millis() >= *period as u128 {
                         self.ready_checked_at = Some(now);
-                        self.set_readiness(readiness_probe::command(command.to_owned()));
+
+                        if readiness_probe::command(command.to_owned()) {
+                            self.set_ready();
+                        }
                     }
                 }
             },
             ConfigReadinessProbe::Delay { delay } => match self.started_at {
                 None => (),
                 Some(started) => {
-                    self.set_readiness(now.as_millis() - started.as_millis() >= *delay as u128);
+                    if now.as_millis() - started.as_millis() >= *delay as u128 {
+                        self.set_ready();
+                    }
                 }
             },
             ConfigReadinessProbe::Http {
@@ -208,28 +213,35 @@ impl App {
             } => match self.ready_checked_at {
                 None => {
                     self.ready_checked_at = Some(now);
-                    self.set_readiness(readiness_probe::http(method.to_owned(), url.to_owned()));
+
+                    if readiness_probe::http(method.to_owned(), url.to_owned()) {
+                        self.set_ready()
+                    }
                 }
                 Some(last_ready_checked) => {
                     if now.as_millis() - last_ready_checked.as_millis() >= *period as u128 {
                         self.ready_checked_at = Some(now);
-                        self.set_readiness(readiness_probe::http(
-                            method.to_owned(),
-                            url.to_owned(),
-                        ));
+
+                        if readiness_probe::http(method.to_owned(), url.to_owned()) {
+                            self.set_ready();
+                        }
                     }
                 }
             },
-            ConfigReadinessProbe::ExitCode { exit_code } => self.set_readiness(
-                self.status == AppStatus::Stopped
-                    && self.exit_code.is_some_and(|x| x == *exit_code),
-            ),
+            ConfigReadinessProbe::ExitCode { exit_code } => {
+                if self.status == AppStatus::Stopped
+                    && self.exit_code.is_some_and(|x| x == *exit_code)
+                {
+                    self.set_ready();
+                }
+            }
             ConfigReadinessProbe::None => {
                 log::info!(
-                    "no readiness probe is preseted for app \"{}\", considering as ready",
+                    "no readiness probe is presented for app \"{}\", considering as READY",
                     self.name
                 );
-                self.set_readiness(true);
+
+                self.set_ready();
             }
         }
     }
@@ -268,7 +280,7 @@ impl App {
 
     fn kill(&mut self) {
         if let Some(ref mut proc) = self.process {
-            log::info!("killing with SIGKILL...");
+            log::info!("killing app \"{}\" with SIGKILL...", self.name);
 
             proc.kill().ok();
         }
