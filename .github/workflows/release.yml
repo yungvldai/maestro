@@ -77,12 +77,15 @@ jobs:
           fi
 
       - name: Build app for ${{ matrix.platform.name }}
-        run: cargo build --release --target ${{ matrix.platform.target }}
+        run: |
+          cargo build --release --target ${{ matrix.platform.target }}
+          mv ./target/${{ matrix.platform.target }}/release/maestro ./maestro-${{ matrix.platform.name }}
+          chmod +x ./maestro-${{ matrix.platform.name }}
 
       - name: Compress bin for ${{ matrix.platform.name }}
         uses: vimtor/action-zip@v1.1
         with:
-          files: ./target/${{ matrix.platform.target }}/release/maestro
+          files: ./maestro-${{ matrix.platform.name }}
           dest: ./maestro-${{ matrix.platform.name }}.zip
     
       - name: Upload Release Asset

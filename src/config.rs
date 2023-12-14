@@ -177,14 +177,13 @@ impl Config {
 
         let etc_config_path = Path::new(CONFIG_DIR).join(CONFIG_FILENAME);
 
-        let file = File::open(&etc_config_path).expect(
-            format!(
+        let file = File::open(&etc_config_path).unwrap_or_else(|_| {
+            panic!(
                 "config file not found, checked: {} and {}",
                 cwd_config_path.to_str().unwrap(),
                 etc_config_path.to_str().unwrap()
             )
-            .as_str(),
-        );
+        });
 
         let config: Config = serde_yaml::from_reader(file).unwrap();
 

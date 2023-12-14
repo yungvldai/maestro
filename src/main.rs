@@ -1,5 +1,6 @@
 mod app;
 mod config;
+mod fs;
 mod logger;
 mod pid;
 mod readiness_probe;
