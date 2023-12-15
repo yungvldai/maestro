@@ -27,3 +27,6 @@ jobs:
 
       - name: Run fmt check
         run: cargo fmt --check
+
+      - name: Run check
+        run: cargo check

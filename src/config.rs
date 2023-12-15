@@ -199,7 +199,7 @@ impl Config {
             }
 
             if apps_map.contains_key(&app.name) {
-                panic!("Application names must be unique");
+                panic!("App names must be unique");
             }
 
             apps_map.insert(app.name.to_owned(), app);
