@@ -74,7 +74,6 @@ impl App {
 
     fn set_status(&mut self, status: AppStatus) {
         self.status = status;
-
         log::info!("app \"{}\" status changed to {}", self.name, status);
     }
 
@@ -247,8 +246,6 @@ impl App {
     }
 
     pub fn update(&mut self) {
-        self.update_readiness();
-
         if self.status != AppStatus::Stopped && self.exit_code.is_none() {
             if let Some(process) = &mut self.process {
                 match process.try_wait() {
@@ -275,13 +272,17 @@ impl App {
             }
         }
 
+        /*
+         * The readiness update must come after the state update 
+         * because it can depend on the state, but not vice versa
+         */
+        self.update_readiness();
         self.updated_at = get_now();
     }
 
     fn kill(&mut self) {
         if let Some(ref mut proc) = self.process {
             log::info!("killing app \"{}\" with SIGKILL...", self.name);
-
             proc.kill().ok();
         }
     }

@@ -46,7 +46,7 @@ curl -o maestro.zip "https://github.com/yungvldai/maestro/releases/download/${MA
 
 ## Operation
 
-`maestro` will start all app in the specified order and will be listening for signals. If `maestro` receives the appropriate signal, it will attempt to gracefully stop the started apps in reverse order. If any of the applications stop on their own, exiting with a non-zero code (or if `maestro` fails to obtain an exit code), `maestro` will also attempt to stop the remaining apps, preserving the order, and then exit itself.
+`maestro` will start all app in the specified order and will be listening for signals. If `maestro` receives the appropriate signal, it will attempt to gracefully stop the started apps in reverse order. If any of the app stop on their own, exiting with a non-zero code (or if `maestro` fails to obtain an exit code), `maestro` will also attempt to stop the remaining apps, preserving the order, and then exit itself.
 
 Exiting the `maestro` program will only occur when all processes are either never started (**INIT**) or already **STOPPED** (excluding SIGKILL, of course).
 
@@ -109,21 +109,21 @@ By default, app logs are not written anywhere.
 
 #### `signal`
 
-When `maestro` receives SIGINT (2) or SIGTERM (15), it initiates the shutdown procedure. All apps are stopped in the order dictated by `depends_on`. Although `maestro` itself only handles SIGINT and SIGTERM, you can specify the signal that should be sent to the application for shutdown.
+When `maestro` receives SIGINT (2) or SIGTERM (15), it initiates the shutdown procedure. All apps are stopped in the order dictated by `depends_on`. Although `maestro` itself only handles SIGINT and SIGTERM, you can specify the signal that should be sent to the app for shutdown.
 
 This can be a numeric signal identifier or one of the strings: `sigint`, `sigterm`, `int`, `term`, in any case. By default, `maestro` will send a SIGTERM to your app.
 
-`maestro` will wait for all your apps to stop until it receives a SIGKILL itself. `maestro` will attempt to send a SIGKILL to your application if an error occurs when attempting to send the specified signal.
+`maestro` will wait for all your apps to stop until it receives a SIGKILL itself. `maestro` will attempt to send a SIGKILL to your app if an error occurs when attempting to send the specified signal.
 
 #### `user`
 
-By default, all your applications will run under the current effective user id. However, you can change this behavior by providing the `user` option. You can pass a username (in this case, the `id` command must be supported in your OS), or directly provide a uid.
+By default, all your apps will run under the current effective user id. However, you can change this behavior by providing the `user` option. You can pass a username (in this case, the `id` command must be supported in your OS), or directly provide a uid.
 
 Under the hood, `maestro` will call setuid in the child process (app), so this mechanism has limitations. For example, if you run `maestro` without root privileges, you can only start other app under the same user as `maestro` itself (this information requires confirmation).
 
 #### `depends_on`
 
-`depends_on` allows you to specify apps that must be **READY** before the configured application starts. The readiness of an application is determined by the readiness probe (option `ready`, read below).
+`depends_on` allows you to specify apps that must be **READY** before the configured app starts. The readiness of an app is determined by the readiness probe (option `ready`, read below).
 
 `depends_on` takes an array of strings - the names of other apps.
 
@@ -151,7 +151,7 @@ By default, apps are considered ready immediately after start. This can be chang
 
 ##### `exit_code`
 
-The application will be considered **READY** if it exits with the specified code. This is useful if you need to run a script before the application.
+The app will be considered **READY** if it exits with the specified code. This is useful if you need to run a script before the app.
 
 Example: 
 
@@ -169,7 +169,7 @@ apps:
 
 ##### `delay`
 
-The application will be considered **READY** after the specified number of milliseconds following its launch.
+The app will be considered **READY** after the specified number of milliseconds following its launch.
 
 ```yaml
 apps:

@@ -35,6 +35,7 @@ fn main() {
     let apps_map = AppsMap::new(config.apps);
     let (sender, receiver) = mpsc::channel::<i32>();
     let mut state = MainState::Running;
+    let mut stop_flag = false;
 
     thread::spawn(move || {
         for signal in signals.forever() {
@@ -72,6 +73,7 @@ fn main() {
                         /*
                          * The app failed, so system operation is not guaranteed
                          */
+
                         state = MainState::Stopping;
                     }
                 }
@@ -82,8 +84,9 @@ fn main() {
                                 .get_dependents_for(&app.get_name())
                                 .iter()
                                 .all(|app_name| {
-                                    apps_map.get(app_name).unwrap().borrow().get_status()
-                                        == AppStatus::Stopped
+                                    [AppStatus::Stopped, AppStatus::Init].contains(
+                                        &apps_map.get(app_name).unwrap().borrow().get_status(),
+                                    )
                                 });
 
                         if ready {
@@ -94,20 +97,29 @@ fn main() {
             }
         }
 
+        /*
+         * Finding all apps in the `Stopped` and `Init` statuses means
+         * that apps that were running have already been stopped, and apps that
+         * were not running will no longer start.
+         *
+         * In this case, we can do break
+         */
         if apps_map
             .every(|app| [AppStatus::Stopped, AppStatus::Init].contains(&app.borrow().get_status()))
         {
             /*
-             * Finding all apps in the `Stopped` and `Init` statuses means
-             * that apps that were running have already been stopped, and apps that
-             * were not running will no longer start.
-             *
-             * In this case, we can do break
+             * If it happens that all apps are stopped or not running,
+             * we stop maestro only in the second cycle.
+             * An update needs to happen to make sure no app wants to run (after exit_code readiness probe, for example)
              */
-
-            log::info!("all apps are stopped or have not been started, stopping...");
-
-            break;
+            if !stop_flag {
+                stop_flag = true
+            } else {
+                log::info!("all apps are stopped or have not been started, stopping...");
+                break;
+            }
+        } else {
+            stop_flag = false;
         }
 
         thread::sleep(time::Duration::from_millis(POLL_PERIOD));
