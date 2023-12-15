@@ -273,7 +273,7 @@ impl App {
         }
 
         /*
-         * The readiness update must come after the state update 
+         * The readiness update must come after the state update
          * because it can depend on the state, but not vice versa
          */
         self.update_readiness();

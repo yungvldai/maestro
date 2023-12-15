@@ -11,7 +11,7 @@ pub enum AppStatus {
     // Successfully invoked kill with the pid of the running process
     Stopping,
 
-    // The process has stopped. Having a process to stop is mandatory. 
+    // The process has stopped. Having a process to stop is mandatory.
     // There should be no transition Init -> Stopped
     Stopped,
 }
