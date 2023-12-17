@@ -14,7 +14,7 @@ use signal_hook::{
     consts::{SIGINT, SIGTERM},
     iterator::Signals,
 };
-use std::{sync::mpsc, thread, time};
+use std::{thread, time};
 
 const POLL_PERIOD: u64 = 100;
 
@@ -33,18 +33,11 @@ fn main() {
 
     let mut signals = Signals::new([SIGTERM, SIGINT]).unwrap();
     let apps_map = AppsMap::new(config.apps);
-    let (sender, receiver) = mpsc::channel::<i32>();
     let mut state = MainState::Running;
     let mut stop_flag = false;
 
-    thread::spawn(move || {
-        for signal in signals.forever() {
-            sender.send(signal).unwrap();
-        }
-    });
-
     loop {
-        if let Ok(signal) = receiver.try_recv() {
+        for signal in signals.pending() {
             log::info!("received signal {:?}", signal);
             state = MainState::Stopping;
         }
