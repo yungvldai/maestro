@@ -2,7 +2,7 @@ use libc::{SIGINT, SIGTERM};
 use serde::Deserialize;
 use serde_yaml::Value;
 
-use crate::user::get_uid_by_name;
+use crate::user::get_uid_from_username;
 
 use super::config_readiness_probe::ConfigReadinessProbe;
 
@@ -43,7 +43,7 @@ where
                     Err(_) => panic!("unable to parse string: {}", string_value),
                 }
             } else {
-                get_uid_by_name(string_value)
+                get_uid_from_username(string_value.as_str())
             }
         }
         Value::Number(number) => match number.as_u64() {
