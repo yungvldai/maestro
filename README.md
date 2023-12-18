@@ -2,7 +2,7 @@
 
 ![maestro](https://github.com/yungvldai/maestro/blob/main/media/cover.jpg)
 
-Simple processes manager
+Simple process manager
 
 <!-- TOC tocDepth:2..5 chapterDepth:2..6 -->
 
