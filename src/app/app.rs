@@ -2,7 +2,7 @@ use std::{
     env,
     io::{Error, ErrorKind},
     os::unix::process::CommandExt,
-    process::{Child, Command, ExitStatus, Stdio},
+    process::{Child, Command, Stdio},
     time::Duration,
 };
 
@@ -292,26 +292,23 @@ impl App {
             return;
         }
 
-        let exec_kill = || -> Result<ExitStatus, Error> {
-            let pid = self
+        let exec_kill = || -> Result<i32, Error> {
+            let pid: i32 = self
                 .get_pid()
-                .ok_or(Error::new(ErrorKind::Other, "no pid"))?
-                .to_string();
-            let signal = self.signal.to_string();
+                .ok_or(Error::new(ErrorKind::Other, "unable to get pid"))?
+                .try_into()
+                .map_err(|_| Error::new(ErrorKind::Other, "unable to get pid"))?;
 
-            let exit_status = Command::new("kill")
-                .args([format!("-{}", signal.as_str()), pid])
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn()?
-                .wait()?;
+            // On success (at least one signal was sent), zero is returned.  On
+            // error, -1 is returned
+            let code = unsafe { libc::kill(pid, self.signal) };
 
-            Ok(exit_status)
+            Ok(code)
         };
 
         match exec_kill() {
             Ok(status) => {
-                if status.code().unwrap_or(1) != 0 {
+                if status != 0 {
                     log::warn!("unable to kill the app \"{}\" gracefully", self.name);
                     self.kill();
                 } else {
