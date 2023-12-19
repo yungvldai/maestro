@@ -2,7 +2,9 @@
 
 ![maestro](https://github.com/yungvldai/maestro/blob/main/media/cover.jpg)
 
-Simple process manager
+`maestro` is a simple process manager and it can help you start multiple processes dependent on each other and then stop them in the right order. 
+
+One of the use cases could be running in Docker. Although it is generally an anti-pattern to run multiple services in one container, sometimes it is a necessary requirement.
 
 <!-- TOC tocDepth:2..5 chapterDepth:2..6 -->
 
