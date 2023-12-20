@@ -7,7 +7,11 @@ mod readiness_probe;
 mod user;
 mod utils;
 
-use crate::{app::AppsMap, logger::init_logger, pid::init_pid};
+use crate::{
+    app::{App, AppsMap},
+    logger::init_logger,
+    pid::init_pid,
+};
 use app::AppStatus;
 use config::Config;
 use signal_hook::{
@@ -32,9 +36,15 @@ fn main() {
     log::debug!("loaded config {:#?}", config);
 
     let mut signals = Signals::new([SIGTERM, SIGINT]).unwrap();
-    let apps_map = AppsMap::new(config.apps);
     let mut state = MainState::Running;
     let mut stop_flag = false;
+    let mut apps_map = AppsMap::new();
+
+    for config_app in config.apps {
+        let deps = config_app.depends_on.to_owned();
+
+        apps_map.add(App::from(config_app), deps);
+    }
 
     loop {
         for signal in signals.pending() {
