@@ -1,6 +1,6 @@
 # maestro
 
-![maestro](https://github.com/yungvldai/maestro/blob/main/media/cover.jpg)
+![maestro](https://github.com/yungvldai/maestro/blob/main/media/cover.png)
 
 `maestro` is a simple process manager and it can help you start multiple processes dependent on each other and then stop them in the right order. 
 
