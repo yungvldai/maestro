@@ -66,7 +66,7 @@ You can specify the `pid` option; in this case, when `maestro` starts, it will w
 For example:
 
 ```yaml
-pid: /var/run/maestro.pid;
+pid: /var/run/maestro.pid
 ```
 
 By default, it only prints it. Note that the PID log has an info severity level `info` (you can read about loggging levels below).
