@@ -3,8 +3,6 @@ use std::{
     collections::{hash_map::Values, HashMap},
 };
 
-use crate::config::ConfigApp;
-
 use super::App;
 
 pub struct AppsMap {
@@ -14,39 +12,22 @@ pub struct AppsMap {
 }
 
 impl AppsMap {
-    pub fn new(apps: Vec<ConfigApp>) -> Self {
-        let mut run_after: HashMap<String, Vec<String>> = HashMap::new();
-        let mut run_before: HashMap<String, Vec<String>> = HashMap::new();
-        let mut apps_map: HashMap<String, RefCell<App>> = HashMap::new();
-
-        for config_app in apps.into_iter() {
-            let app = App::new(
-                config_app.name.to_owned(),
-                config_app.command,
-                config_app.uid,
-                config_app.ready,
-                config_app.signal,
-                config_app.stdout,
-                config_app.stderr,
-            );
-
-            run_after.insert(config_app.name.to_owned(), config_app.depends_on.to_owned());
-
-            for dep in config_app.depends_on {
-                run_before
-                    .entry(dep)
-                    .or_default()
-                    .push(config_app.name.to_owned());
-            }
-
-            apps_map.insert(config_app.name.to_owned(), RefCell::new(app));
-        }
-
+    pub fn new() -> Self {
         Self {
-            map: apps_map,
-            run_after,
-            run_before,
+            map: HashMap::new(),
+            run_after: HashMap::new(),
+            run_before: HashMap::new(),
         }
+    }
+
+    pub fn add(&mut self, app: App, deps: Vec<String>) {
+        self.run_after.insert(app.get_name(), deps.to_owned());
+
+        for dep in deps {
+            self.run_before.entry(dep).or_default().push(app.get_name());
+        }
+
+        self.map.insert(app.get_name(), RefCell::new(app));
     }
 
     pub fn every(&self, predicate: fn(&RefCell<App>) -> bool) -> bool {

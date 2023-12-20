@@ -7,13 +7,13 @@ use std::{
 };
 
 use crate::{
-    config::ConfigReadinessProbe,
+    config::ConfigApp,
     fs::open_file,
     readiness_probe,
     utils::{get_now, normalize_path},
 };
 
-use super::AppStatus;
+use super::{AppReadinessProbe, AppStatus};
 
 #[derive(Debug)]
 pub struct App {
@@ -21,7 +21,7 @@ pub struct App {
     command: Vec<String>,
     uid: u32,
     ready: bool,
-    readiness_probe: ConfigReadinessProbe,
+    readiness_probe: AppReadinessProbe,
     signal: i32,
 
     process: Option<Child>,
@@ -37,12 +37,11 @@ pub struct App {
 }
 
 impl App {
-    #[warn(clippy::too_many_arguments)]
     pub fn new(
         name: String,
         command: Vec<String>,
         uid: u32,
-        readiness_probe: ConfigReadinessProbe,
+        readiness_probe: AppReadinessProbe,
         signal: i32,
 
         stdout: Option<String>,
@@ -179,7 +178,7 @@ impl App {
         let now = get_now();
 
         match &self.readiness_probe {
-            ConfigReadinessProbe::Command { command, period } => match self.ready_checked_at {
+            AppReadinessProbe::Command { command, period } => match self.ready_checked_at {
                 None => {
                     self.ready_checked_at = Some(now);
 
@@ -197,7 +196,7 @@ impl App {
                     }
                 }
             },
-            ConfigReadinessProbe::Delay { delay } => match self.started_at {
+            AppReadinessProbe::Delay { delay } => match self.started_at {
                 None => (),
                 Some(started) => {
                     if now.as_millis() - started.as_millis() >= *delay as u128 {
@@ -205,7 +204,7 @@ impl App {
                     }
                 }
             },
-            ConfigReadinessProbe::Http {
+            AppReadinessProbe::Http {
                 url,
                 method,
                 period,
@@ -227,14 +226,14 @@ impl App {
                     }
                 }
             },
-            ConfigReadinessProbe::ExitCode { exit_code } => {
+            AppReadinessProbe::ExitCode { exit_code } => {
                 if self.status == AppStatus::Stopped
                     && self.exit_code.is_some_and(|x| x == *exit_code)
                 {
                     self.set_ready();
                 }
             }
-            ConfigReadinessProbe::None => {
+            AppReadinessProbe::None => {
                 log::info!(
                     "no readiness probe is presented for app \"{}\", considering as READY",
                     self.name
@@ -324,5 +323,30 @@ impl App {
                 self.kill();
             }
         }
+    }
+}
+
+impl From<ConfigApp> for App {
+    fn from(
+        ConfigApp {
+            name,
+            command,
+            stdout,
+            stderr,
+            signal,
+            uid,
+            ready,
+            ..
+        }: ConfigApp,
+    ) -> Self {
+        Self::new(
+            name,
+            command,
+            uid,
+            AppReadinessProbe::from(ready),
+            signal,
+            stdout,
+            stderr,
+        )
     }
 }
