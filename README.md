@@ -53,7 +53,7 @@ curl -o maestro.zip "https://github.com/yungvldai/maestro/releases/download/${MA
 
 ## Operation
 
-`maestro` will start all app in the specified order and will be listening for signals. If `maestro` receives the appropriate signal, it will attempt to gracefully stop the started apps in reverse order. If any of the app stop on their own, exiting with a non-zero code (or if `maestro` fails to obtain an exit code), `maestro` will also attempt to stop the remaining apps, preserving the order, and then exit itself.
+`maestro` will start all apps in the specified order and will be listening for signals. If `maestro` receives the appropriate signal, it will attempt to gracefully stop the started apps in reverse order. If any of the app stop on their own, exiting with a non-zero code (or if `maestro` fails to obtain an exit code), `maestro` will also attempt to stop the remaining apps, preserving the order, and then exit itself.
 
 Exiting the `maestro` program will only occur when all processes are either never started (**INIT**) or already **STOPPED** (excluding SIGKILL, of course).
 
