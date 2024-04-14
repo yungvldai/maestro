@@ -290,3 +290,5 @@ envsubst '$LOGS_DIR' < "./maestro-template.yml" > "./maestro.yml"
 ```bash
 kill -15 <maestro pid>
 ```
+
+- Only zero exit codes supported in `ready`.`exit_code` readiness probe, because when receiving a non-zero code from any process, the maestro will stop all other processes and exit itself.
